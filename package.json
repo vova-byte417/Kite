@@ -1,0 +1,78 @@
+{
+  "name": "kite-skill-system",
+  "version": "2.1.0",
+  "description": "Kite AI Skill System - 完整的 Skill 发现、加载、执行和管理框架",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "start": "node dist/index.js",
+    "dev": "tsx src/skill/index.ts",
+    "test": "cd tests && npm test 2>/dev/null || vitest run --config tests/vitest.config.ts",
+    "test:unit": "cd tests && npm run test:unit 2>/dev/null || vitest run tests/unit/",
+    "test:integration": "cd tests && npm run test:integration 2>/dev/null || vitest run tests/integration/",
+    "test:watch": "cd tests && npm run test:watch 2>/dev/null || vitest watch",
+    "test:coverage": "cd tests && npm run test:coverage 2>/dev/null || vitest run --coverage",
+    "lint": "eslint src/ --ext .ts",
+    "lint:fix": "eslint src/ --ext .ts --fix",
+    "docs": "typedoc --out docs/api src/skill/index.ts",
+    "clean": "rm -rf dist/ coverage/ node_modules/",
+    "example:basic": "tsx examples/basic-usage.ts",
+    "example:api": "tsx examples/api-usage.ts",
+    "skill:list": "tsx -e \"import { SkillManager } from './src/skill'; (async () => { const m = new SkillManager(); await m.initialize(); console.log(m.getAllSkills()); })()\""
+  },
+  "keywords": [
+    "ai",
+    "agent",
+    "skill",
+    "framework",
+    "automation",
+    "sandbox",
+    "vm2",
+    "dependency-management",
+    "kite-ai"
+  ],
+  "author": "Kite AI Team",
+  "contributors": [
+    "vova"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.8",
+    "dayjs": "^1.11.11",
+    "dotenv": "^16.4.5",
+    "events": "^3.3.0",
+    "uuid": "^9.0.1",
+    "vm2": "^3.9.19",
+    "winston": "^3.13.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.8",
+    "@types/uuid": "^9.0.8",
+    "@typescript-eslint/eslint-plugin": "^7.8.0",
+    "@typescript-eslint/parser": "^7.8.0",
+    "@vitest/coverage-v8": "^1.6.0",
+    "eslint": "^8.57.0",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.9.0",
+    "typedoc": "^0.25.13",
+    "typescript": "^5.9.3",
+    "vite-tsconfig-paths": "^6.1.1",
+    "vitest": "^1.6.0"
+  },
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=8.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vova-byte417/kite.git"
+  },
+  "bugs": {
+    "url": "https://github.com/vova-byte417/kite/issues"
+  },
+  "homepage": "https://github.com/vova-byte417/kite#readme"
+}
