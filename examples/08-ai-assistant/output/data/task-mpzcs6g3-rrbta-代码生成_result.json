@@ -1,0 +1,7 @@
+{
+  "success": true,
+  "code": "import { Repository, EntityRepository } from 'typeorm';\nimport { User } from '../entities/User';\n\n@EntityRepository(User)\nclass UserRepository extends Repository<User> {\n\n  async createUser(data: Partial<User>): Promise<User> {\n    const entity = this.create(data);\n    return await this.save(entity);\n  }\n\n  async updateUser(id: string, data: Partial<User>): Promise<User> {\n    await this.update(id, data);\n    return await this.findOne(id);\n  }\n\n  async deleteUser(id: string): Promise<void> {\n    await this.delete(id);\n  }\n\n  async findAll(): Promise<User[]> {\n    return await this.find();\n  }\n\n  async findById(id: string): Promise<User> {\n    return await this.findOne(id);\n  }\n}\n\nexport default UserRepository;",
+  "language": "python",
+  "codeType": "crud",
+  "fileExtension": ".ts"
+}

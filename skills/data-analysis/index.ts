@@ -10,26 +10,165 @@
 export const execute = async (input: any, context?: any) => {
   console.log(`[数据分析] 开始执行，任务ID: ${context?.taskId || 'unknown'}`);
 
+  // 处理通用输入格式（来自 ai-assistant）
+  let taskInput = input;
+  
+  // 如果是通用格式，提取任务信息
+  if (input.task || input.parsedTask) {
+    taskInput = {
+      operation: 'analyze',
+      task: input.task || input.parsedTask?.projectType || 'analyze',
+      description: input.parsedTask?.description || input.task || '',
+      tags: input.parsedTask?.tags || [],
+      subtasks: input.subtasks || input.parsedTask?.subtasks || [],
+    };
+  }
+
   // 根据操作类型执行不同的处理
-  const operation = input.operation || 'analyze';
+  const operation = taskInput.operation || 'analyze';
   
   let result;
   switch (operation) {
     case 'read-csv':
-      result = await readCSV(input);
+      result = await readCSV(taskInput);
       break;
     case 'clean':
-      result = await cleanData(input);
+      result = await cleanData(taskInput);
       break;
     case 'analyze':
     default:
-      result = await analyzeData(input);
+      // 如果是自然语言任务，执行完整的数据分析流程
+      if (taskInput.task || taskInput.description) {
+        result = await executeNaturalLanguageTask(taskInput);
+      } else {
+        result = await analyzeData(taskInput);
+      }
       break;
   }
 
   console.log(`[数据分析] 处理完成`);
   return result;
 };
+
+/**
+ * 执行自然语言任务
+ */
+async function executeNaturalLanguageTask(input: any): Promise<any> {
+  const { task, description, tags, subtasks } = input;
+  const fullDescription = task || description || '';
+  
+  // 根据任务描述判断需要执行的操作
+  const needsCSVGeneration = fullDescription.includes('csv') || fullDescription.includes('CSV') || 
+                           tags?.includes('csv') || tags?.includes('random');
+  const needsCleaning = fullDescription.includes('清洗') || fullDescription.includes('clean') || 
+                       tags?.includes('clean') || tags?.includes('data-cleaning');
+  const needsAnalysis = fullDescription.includes('分析') || fullDescription.includes('统计') || 
+                       tags?.includes('statistics') || tags?.includes('analysis');
+
+  // 生成随机 CSV 数据（如果需要）
+  let csvData: any[] = [];
+  let csvContent = '';
+  
+  if (needsCSVGeneration) {
+    // 解析维度（如 "100*100"）
+    const dimensionMatch = fullDescription.match(/(\d+)\s*[*x×]\s*(\d+)/);
+    const rows = dimensionMatch ? parseInt(dimensionMatch[1]) : 100;
+    const cols = dimensionMatch ? parseInt(dimensionMatch[2]) : 100;
+    
+    console.log(`[数据分析] 生成 ${rows}x${cols} 的随机数据...`);
+    csvData = generateRandomData(rows, cols);
+    csvContent = arrayToCSV(csvData);
+    console.log(`[数据分析] 已生成 ${rows * cols} 个随机数`);
+  }
+
+  // 数据清洗（如果需要且有数据）
+  let cleanedData = csvData;
+  if (needsCleaning && csvData.length > 0) {
+    console.log('[数据分析] 执行数据清洗...');
+    const cleanResult = await cleanData({ data: csvData });
+    cleanedData = cleanResult.cleanedData;
+    console.log(`[数据分析] 数据清洗完成，原始: ${cleanResult.originalCount} 行，清洗后: ${cleanResult.cleanedCount} 行`);
+  }
+
+  // 统计分析（如果需要）
+  let analysisResult: any = {};
+  if (needsAnalysis && cleanedData.length > 0) {
+    console.log('[数据分析] 执行统计分析...');
+    analysisResult = await analyzeData({ data: cleanedData });
+  }
+
+  return {
+    success: true,
+    generatedCSV: csvContent ? { rows: csvData.length, columns: csvData[0] ? Object.keys(csvData[0]).length : 0 } : null,
+    cleaningResult: needsCleaning && csvData.length > 0 ? {
+      originalCount: csvData.length,
+      cleanedCount: cleanedData.length,
+    } : null,
+    analysis: analysisResult,
+    summary: buildSummary(fullDescription, csvData.length > 0, cleanedData.length > 0, !!analysisResult),
+  };
+}
+
+/**
+ * 生成随机数据
+ */
+function generateRandomData(rows: number, cols: number): any[] {
+  const data: any[] = [];
+  const headers = Array.from({ length: cols }, (_, i) => `column_${i + 1}`);
+  
+  for (let i = 0; i < rows; i++) {
+    const row: any = { row_id: i + 1 };
+    for (let j = 0; j < cols; j++) {
+      // 生成随机数，偶尔加入一些异常值
+      let value = Math.random() * 1000;
+      // 5% 的概率生成 null（模拟缺失值）
+      if (Math.random() < 0.05) {
+        value = null;
+      }
+      // 1% 的概率生成极端值
+      else if (Math.random() < 0.01) {
+        value = value * 100;
+      }
+      row[headers[j]] = value;
+    }
+    data.push(row);
+  }
+  
+  return data;
+}
+
+/**
+ * 将数组转换为 CSV 格式
+ */
+function arrayToCSV(data: any[]): string {
+  if (data.length === 0) return '';
+  
+  const headers = Object.keys(data[0]);
+  const lines = [headers.join(',')];
+  
+  for (const row of data) {
+    const values = headers.map(h => {
+      const v = row[h];
+      if (v === null || v === undefined) return '';
+      if (typeof v === 'string' && v.includes(',')) return `"${v}"`;
+      return v;
+    });
+    lines.push(values.join(','));
+  }
+  
+  return lines.join('\n');
+}
+
+/**
+ * 构建总结
+ */
+function buildSummary(task: string, generated: boolean, cleaned: boolean, analyzed: boolean): string {
+  const parts: string[] = [];
+  if (generated) parts.push('CSV数据生成');
+  if (cleaned) parts.push('数据清洗');
+  if (analyzed) parts.push('统计分析');
+  return `已完成${parts.join('、')}任务。`;
+}
 
 /**
  * 输入验证

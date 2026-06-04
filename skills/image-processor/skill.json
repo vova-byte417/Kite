@@ -1,0 +1,25 @@
+{
+  "id": "image-processor",
+  "name": "图片处理",
+  "description": "提供图片处理能力，包括裁剪、缩放、压缩、格式转换等操作",
+  "version": "1.0.0",
+  "tags": ["image", "picture", "photo", "processing", "resize", "compress", "crop", "format", "convert", "thumbnail"],
+  "entryPoint": "index.js",
+  "supportedModels": [],
+  "requirements": {
+    "memory": "512MB",
+    "timeout": 60000
+  },
+  "metadata": {
+    "author": "Kite AI Team",
+    "category": "工具类",
+    "documentation": "https://docs.kite.ai/skills/image-processor"
+  },
+  "dependencies": [],
+  "config": {
+    "enabled": true,
+    "timeout": 60000,
+    "maxRetries": 2,
+    "concurrency": 3
+  }
+}

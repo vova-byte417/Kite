@@ -1,0 +1,25 @@
+{
+  "id": "web-scraper",
+  "name": "网页爬虫",
+  "description": "提供网页内容爬取和数据提取能力，支持 HTML 解析和链接提取",
+  "version": "1.0.0",
+  "tags": ["web", "scraper", "crawler", "spider", "html", "extract", "parse", "data-mining", "content", "http"],
+  "entryPoint": "index.ts",
+  "supportedModels": [],
+  "requirements": {
+    "memory": "256MB",
+    "timeout": 60000
+  },
+  "metadata": {
+    "author": "Kite AI Team",
+    "category": "工具类",
+    "documentation": "https://docs.kite.ai/skills/web-scraper"
+  },
+  "dependencies": [],
+  "config": {
+    "enabled": true,
+    "timeout": 60000,
+    "maxRetries": 3,
+    "concurrency": 5
+  }
+}

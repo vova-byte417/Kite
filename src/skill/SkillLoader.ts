@@ -742,6 +742,28 @@ export class SkillLoader extends EventEmitter {
   }
 
   /**
+   * 将 Windows 绝对路径转换为 file:// URL 格式
+   * ESM 模式需要这种格式的路径
+   */
+  private normalizePathForESM(filePath: string): string {
+    // 如果已经是 URL 格式，直接返回
+    if (filePath.startsWith('file://') || filePath.startsWith('http://') || filePath.startsWith('https://')) {
+      return filePath;
+    }
+    
+    // 转换为 file:// URL
+    // Windows: D:\path\to\file.ts -> file:///D:/path/to/file.ts
+    // Unix: /path/to/file.ts -> file:///path/to/file.ts
+    const normalized = filePath.replace(/\\/g, '/');
+    if (normalized.match(/^[a-zA-Z]:/)) {
+      // Windows 绝对路径
+      return `file:///${normalized}`;
+    }
+    // Unix 绝对路径
+    return `file://${normalized}`;
+  }
+
+  /**
    * 使用动态 import 加载 Skill（非沙箱模式）
    */
   private async loadWithRequire(skill: SkillRegistration): Promise<LoadedSkill> {
@@ -752,8 +774,11 @@ export class SkillLoader extends EventEmitter {
       // 忽略清除缓存错误
     }
 
+    // 转换为 ESM 兼容的 file:// URL
+    const esmPath = this.normalizePathForESM(skill.entryPoint);
+    
     // 使用动态 import 加载，支持 TypeScript 文件
-    const importResult = await import(skill.entryPoint);
+    const importResult = await import(esmPath);
     const skillModule = (importResult.default || importResult) as SkillExport;
 
     // 验证模块导出

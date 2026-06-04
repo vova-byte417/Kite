@@ -1,0 +1,25 @@
+{
+  "id": "code-generation",
+  "name": "代码生成",
+  "description": "模板驱动的代码生成工具，支持多种语言和代码结构，包括类、接口、组件、API等",
+  "version": "1.0.0",
+  "tags": ["code", "generation", "template", "class", "interface", "component", "api", "python", "flask", "typescript", "javascript", "react", "crud", "rest"],
+  "entryPoint": "index.ts",
+  "supportedModels": [],
+  "requirements": {
+    "memory": "256MB",
+    "timeout": 30000
+  },
+  "metadata": {
+    "author": "vova",
+    "category": "development",
+    "documentation": "https://docs.kite.ai/skills/code-generation"
+  },
+  "dependencies": [],
+  "config": {
+    "enabled": true,
+    "timeout": 30000,
+    "maxRetries": 2,
+    "concurrency": 5
+  }
+}

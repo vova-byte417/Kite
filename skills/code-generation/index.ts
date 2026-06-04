@@ -546,60 +546,71 @@ const skillExport: SkillExport = {
   /**
    * 主执行函数
    */
-  execute: async (input: CodeGenerationInput, context?: ExecutionContext): Promise<CodeGenerationOutput> => {
+  execute: async (input: any, context?: ExecutionContext): Promise<CodeGenerationOutput> => {
+    // 处理通用输入格式（来自 ai-assistant）
+    let taskInput = input;
+    
+    // 如果是通用格式，提取任务信息并转换为代码生成请求
+    if (input.task || input.parsedTask) {
+      taskInput = convertNaturalLanguageToCodeGenInput(input);
+    }
+
+    // 类型转换
+    const codeGenInput = taskInput as CodeGenerationInput;
+    
     let code: string;
     let language: string;
     let codeType: string;
     let fileExtension: string;
 
-    switch (input.operation) {
+    switch (codeGenInput.operation) {
       case 'generate-class':
-        language = input.language || 'typescript';
+        language = codeGenInput.language || 'typescript';
         codeType = 'class';
         fileExtension = language === 'typescript' ? '.ts' : '.js';
-        code = generateTypeScriptClass(input);
+        code = generateTypeScriptClass(codeGenInput as GenerateClassInput);
         break;
 
       case 'generate-interface':
-        language = input.language || 'typescript';
+        language = codeGenInput.language || 'typescript';
         codeType = 'interface';
         fileExtension = '.ts';
-        code = generateTypeScriptInterface(input);
+        code = generateTypeScriptInterface(codeGenInput as GenerateInterfaceInput);
         break;
 
       case 'generate-enum':
-        language = input.language || 'typescript';
+        language = codeGenInput.language || 'typescript';
         codeType = 'enum';
         fileExtension = language === 'typescript' ? '.ts' : '.js';
-        code = generateTypeScriptEnum(input);
+        code = generateTypeScriptEnum(codeGenInput as GenerateEnumInput);
         break;
 
       case 'generate-function':
-        language = input.language || 'typescript';
+        language = codeGenInput.language || 'typescript';
         codeType = 'function';
         fileExtension = language === 'typescript' ? '.ts' : '.js';
-        code = generateTypeScriptFunction(input);
+        code = generateTypeScriptFunction(codeGenInput as GenerateFunctionInput);
         break;
 
       case 'generate-component':
-        language = input.typescript ? 'typescript' : 'javascript';
+        language = (codeGenInput as GenerateComponentInput).typescript ? 'typescript' : 'javascript';
         codeType = 'component';
-        fileExtension = input.typescript ? '.tsx' : '.jsx';
-        code = generateReactComponent(input);
+        fileExtension = (codeGenInput as GenerateComponentInput).typescript ? '.tsx' : '.jsx';
+        code = generateReactComponent(codeGenInput as GenerateComponentInput);
         break;
 
       case 'generate-header':
         language = 'typescript';
         codeType = 'header';
         fileExtension = '.ts';
-        code = generateFileHeader(input);
+        code = generateFileHeader(codeGenInput as GenerateFileHeaderInput);
         break;
 
       case 'generate-crud':
-        language = input.language || 'typescript';
+        language = codeGenInput.language || 'typescript';
         codeType = 'crud';
         fileExtension = '.ts';
-        code = generateCRUD(input);
+        code = generateCRUD(codeGenInput as GenerateCRUDInput);
         break;
 
       default:
@@ -618,7 +629,12 @@ const skillExport: SkillExport = {
   /**
    * 输入验证
    */
-  validateInput: async (input: CodeGenerationInput): Promise<boolean> => {
+  validateInput: async (input: any): Promise<boolean> => {
+    // 接受通用格式
+    if (input.task || input.parsedTask) {
+      return true;
+    }
+    
     if (!input || !input.operation) {
       return false;
     }
@@ -643,5 +659,72 @@ const skillExport: SkillExport = {
     console.log('[Code-Generation Skill] 加载完成，准备就绪');
   }
 };
+
+/**
+ * 将自然语言任务转换为代码生成输入
+ */
+function convertNaturalLanguageToCodeGenInput(input: any): CodeGenerationInput {
+  const task = input.task || input.parsedTask?.description || '';
+  const tags = input.parsedTask?.tags || [];
+  const subtasks = input.subtasks || input.parsedTask?.subtasks || [];
+
+  // 根据任务描述判断生成类型
+  const containsAPI = task.includes('API') || task.includes('api') || tags.includes('api') || tags.includes('rest-api');
+  const containsUser = task.includes('用户') || task.includes('user') || tags.includes('user-management');
+  const containsCRUD = task.includes('增删改查') || task.includes('CRUD') || task.includes('crud');
+  const containsClass = task.includes('类') || task.includes('class') || tags.includes('class');
+  const containsInterface = task.includes('接口') || task.includes('interface');
+
+  // 用户管理 API -> 生成 CRUD 代码
+  if ((containsAPI && containsUser) || containsCRUD) {
+    return {
+      operation: 'generate-crud',
+      entityName: 'User',
+      language: tags.includes('python') ? 'python' : 'typescript',
+      outputType: 'repository',
+    };
+  }
+
+  // 生成类
+  if (containsClass) {
+    return {
+      operation: 'generate-class',
+      className: 'MyClass',
+      language: 'typescript',
+      properties: [
+        { name: 'id', type: 'string' },
+        { name: 'name', type: 'string' },
+        { name: 'createdAt', type: 'Date' },
+      ],
+      withConstructor: true,
+      withGettersSetters: true,
+    };
+  }
+
+  // 生成接口
+  if (containsInterface) {
+    return {
+      operation: 'generate-interface',
+      interfaceName: 'MyInterface',
+      properties: [
+        { name: 'id', type: 'string' },
+        { name: 'name', type: 'string' },
+      ],
+    };
+  }
+
+  // 默认生成一个简单的类
+  return {
+    operation: 'generate-class',
+    className: 'GeneratedClass',
+    language: 'typescript',
+    properties: [
+      { name: 'id', type: 'string', description: '唯一标识' },
+      { name: 'name', type: 'string', description: '名称' },
+      { name: 'createdAt', type: 'Date', description: '创建时间' },
+    ],
+    withConstructor: true,
+  };
+}
 
 export default skillExport;

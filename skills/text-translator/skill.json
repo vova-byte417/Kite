@@ -1,0 +1,25 @@
+{
+  "id": "text-translator",
+  "name": "文本翻译",
+  "description": "提供多语言文本翻译能力，支持多种语言互译",
+  "version": "1.0.0",
+  "tags": ["text", "translate", "translation", "language", "i18n", "localization", "multilingual", "nlp"],
+  "entryPoint": "index.ts",
+  "supportedModels": ["gpt-4", "gpt-3.5-turbo", "claude-3"],
+  "requirements": {
+    "memory": "256MB",
+    "timeout": 30000
+  },
+  "metadata": {
+    "author": "Kite AI Team",
+    "category": "工具类",
+    "documentation": "https://docs.kite.ai/skills/text-translator"
+  },
+  "dependencies": [],
+  "config": {
+    "enabled": true,
+    "timeout": 30000,
+    "maxRetries": 2,
+    "concurrency": 5
+  }
+}

@@ -12,12 +12,26 @@
  */
 
 import * as path from 'path';
+import * as fs from 'fs';
 import { fileURLToPath } from 'url';
 import { SkillManager, SkillExecutionResult, Skill } from '../../src';
 
 // ES Module 中获取 __dirname
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// ==================== 输出目录配置 ====================
+const OUTPUT_DIR = path.join(__dirname, 'output');
+const LOGS_DIR = path.join(OUTPUT_DIR, 'logs');
+const CODE_DIR = path.join(OUTPUT_DIR, 'code');
+const DATA_DIR = path.join(OUTPUT_DIR, 'data');
+
+// 确保输出目录存在
+[OUTPUT_DIR, LOGS_DIR, CODE_DIR, DATA_DIR].forEach(dir => {
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+});
 
 // ==================== DeepSeek API 配置 ====================
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || '***REMOVED***';
@@ -57,6 +71,54 @@ interface ProjectExecutionResult {
   results: SkillExecutionResult[];
   summary: string;
   aiResponse: string;
+  outputFiles: string[];
+}
+
+// ==================== 输出工具函数 ====================
+
+/**
+ * 生成唯一的任务ID
+ */
+function generateTaskId(): string {
+  const timestamp = Date.now().toString(36);
+  const random = Math.random().toString(36).substring(2, 7);
+  return `task-${timestamp}-${random}`;
+}
+
+/**
+ * 清理文件名中的特殊字符
+ */
+function sanitizeFilename(name: string): string {
+  return name.replace(/[\\/:*?"<>|]/g, '_').substring(0, 50);
+}
+
+/**
+ * 保存执行日志
+ */
+function saveExecutionLog(taskId: string, data: any): string {
+  const logFile = path.join(LOGS_DIR, `${taskId}.json`);
+  fs.writeFileSync(logFile, JSON.stringify(data, null, 2), 'utf-8');
+  return logFile;
+}
+
+/**
+ * 保存代码产物
+ */
+function saveCodeOutput(taskId: string, skillName: string, code: string, extension: string): string {
+  const safeSkillName = sanitizeFilename(skillName);
+  const codeFile = path.join(CODE_DIR, `${taskId}-${safeSkillName}${extension}`);
+  fs.writeFileSync(codeFile, code, 'utf-8');
+  return codeFile;
+}
+
+/**
+ * 保存数据产物（如 CSV）
+ */
+function saveDataOutput(taskId: string, skillName: string, data: string, extension: string): string {
+  const safeSkillName = sanitizeFilename(skillName);
+  const dataFile = path.join(DATA_DIR, `${taskId}-${safeSkillName}${extension}`);
+  fs.writeFileSync(dataFile, data, 'utf-8');
+  return dataFile;
 }
 
 // ==================== DeepSeek API 客户端 ====================
@@ -269,18 +331,25 @@ class ProjectAutoExecutor {
    * 执行项目
    */
   async executeProject(prompt: string): Promise<ProjectExecutionResult> {
+    // 生成唯一任务ID
+    const taskId = generateTaskId();
+    
     console.log('\n' + '='.repeat(70));
     console.log(`  🚀 开始执行项目: ${prompt}`);
+    console.log(`  📋 任务ID: ${taskId}`);
     console.log('='.repeat(70));
 
     const startTime = Date.now();
     let aiResponse = '';
     const results: SkillExecutionResult[] = [];
+    const outputFiles: string[] = [];
+    let parsedTask: ParsedTask | null = null;
 
     try {
       // 1. 使用 DeepSeek API 解析用户需求
       console.log('\n📌 步骤 1: 解析用户需求 (调用 DeepSeek API)');
       const task = await this.aiClient.parseProjectPrompt(prompt);
+      parsedTask = task;
       aiResponse = JSON.stringify(task, null, 2);
       console.log(`   ✅ 项目类型: ${task.projectType}`);
       console.log(`   📋 识别到的类别: ${task.categories.join(', ')}`);
@@ -299,6 +368,21 @@ class ProjectAutoExecutor {
       
       if (matchedSkills.length === 0) {
         console.log('   ⚠️  未找到匹配的 Skill');
+        
+        // 保存执行日志
+        const logFile = saveExecutionLog(taskId, {
+          taskId,
+          timestamp: new Date().toISOString(),
+          prompt,
+          task,
+          matchedSkills: [],
+          results: [],
+          duration: Date.now() - startTime,
+          success: false,
+        });
+        outputFiles.push(logFile);
+        console.log(`   📄 执行日志已保存: ${logFile}`);
+        
         return {
           success: false,
           prompt,
@@ -309,6 +393,7 @@ class ProjectAutoExecutor {
           results: [],
           summary: '未找到匹配的技能',
           aiResponse,
+          outputFiles,
         };
       }
 
@@ -335,6 +420,7 @@ class ProjectAutoExecutor {
               parsedTask: task,
               subtasks: task.subtasks,
               timestamp: new Date().toISOString(),
+              taskId,
             },
             context: {
               sessionId: `project-${Date.now()}`,
@@ -347,6 +433,13 @@ class ProjectAutoExecutor {
           
           if (result.success && result.result) {
             console.log(`      输出: ${JSON.stringify(result.result).slice(0, 100)}...`);
+            
+            // 保存产物
+            const savedFiles = this.saveSkillOutput(taskId, skill.name, result.result);
+            savedFiles.forEach(file => {
+              outputFiles.push(file);
+              console.log(`      📄 产物已保存: ${file}`);
+            });
           } else if (!result.success) {
             console.log(`      ❌ 错误: ${result.error}`);
           }
@@ -366,6 +459,7 @@ class ProjectAutoExecutor {
       
       // 使用降级解析
       const task = this.aiClient['fallbackParse'](prompt);
+      parsedTask = task;
       aiResponse = JSON.stringify(task, null, 2);
       
       // 尝试匹配技能
@@ -380,11 +474,20 @@ class ProjectAutoExecutor {
         try {
           const result = await this.manager.executeSkill({
             skillId: skill.id,
-            input: { task: prompt },
+            input: { task: prompt, taskId },
             context: { sessionId: `project-${Date.now()}` },
           });
           results.push(result);
           console.log(`   ${result.success ? '✅' : '❌'} ${skill.name}`);
+          
+          // 保存产物
+          if (result.success && result.result) {
+            const savedFiles = this.saveSkillOutput(taskId, skill.name, result.result);
+            savedFiles.forEach(file => {
+              outputFiles.push(file);
+              console.log(`      📄 产物已保存: ${file}`);
+            });
+          }
         } catch (e: any) {
           console.log(`   ❌ ${skill.name} - ${e.message}`);
         }
@@ -401,6 +504,7 @@ class ProjectAutoExecutor {
     const failCount = results.filter(r => !r.success).length;
 
     console.log(`\n📋 项目描述: ${prompt}`);
+    console.log(`📋 任务ID: ${taskId}`);
     console.log(`⏱️  总耗时: ${duration}ms`);
     console.log(`✅ 成功执行: ${successCount} 个技能`);
     console.log(`❌ 失败: ${failCount} 个技能`);
@@ -415,6 +519,28 @@ class ProjectAutoExecutor {
     });
     console.log('└─────────────────────────────────────────────────────────────┘');
 
+    // 保存执行日志
+    const logFile = saveExecutionLog(taskId, {
+      taskId,
+      timestamp: new Date().toISOString(),
+      prompt,
+      task: parsedTask,
+      results,
+      duration,
+      success: failCount === 0,
+      outputFiles,
+    });
+    outputFiles.push(logFile);
+    console.log(`\n📄 执行日志已保存: ${logFile}`);
+
+    // 打印输出文件列表
+    if (outputFiles.length > 0) {
+      console.log('\n📁 输出文件列表:');
+      outputFiles.forEach((file, i) => {
+        console.log(`   ${i + 1}. ${path.relative(__dirname, file)}`);
+      });
+    }
+
     return {
       success: failCount === 0,
       prompt,
@@ -427,7 +553,48 @@ class ProjectAutoExecutor {
         ? `成功执行 ${successCount}/${results.length} 个技能，耗时 ${duration}ms`
         : '未执行任何技能',
       aiResponse,
+      outputFiles,
     };
+  }
+
+  /**
+   * 保存 Skill 执行结果的产物
+   */
+  private saveSkillOutput(taskId: string, skillName: string, result: any): string[] {
+    const savedFiles: string[] = [];
+
+    // 代码生成产物
+    if (result.code && typeof result.code === 'string') {
+      const extension = result.fileExtension || '.ts';
+      const codeFile = saveCodeOutput(taskId, skillName, result.code, extension);
+      savedFiles.push(codeFile);
+    }
+
+    // 数据分析产物 - CSV 数据
+    if (result.generatedCSV && result.generatedCSV.csvContent) {
+      const dataFile = saveDataOutput(taskId, skillName, result.generatedCSV.csvContent, '.csv');
+      savedFiles.push(dataFile);
+    }
+
+    // 数据分析产物 - 分析结果
+    if (result.analysis && typeof result.analysis === 'object') {
+      const analysisFile = saveDataOutput(taskId, skillName, JSON.stringify(result.analysis, null, 2), '_analysis.json');
+      savedFiles.push(analysisFile);
+    }
+
+    // 网页爬虫产物
+    if (result.content && typeof result.content === 'string') {
+      const htmlFile = saveDataOutput(taskId, skillName, result.content, '.html');
+      savedFiles.push(htmlFile);
+    }
+
+    // 通用结果 JSON
+    if (result.summary || Object.keys(result).length > 0) {
+      const jsonFile = saveDataOutput(taskId, skillName, JSON.stringify(result, null, 2), '_result.json');
+      savedFiles.push(jsonFile);
+    }
+
+    return savedFiles;
   }
 
   /**
@@ -440,9 +607,9 @@ class ProjectAutoExecutor {
 
 // ==================== 命令行交互模式 ====================
 async function runInteractiveMode(executor: ProjectAutoExecutor) {
-  console.log('\n' + '🎉'.repeat(70));
+  console.log('\n' + '🎉'.repeat(20));
   console.log('              Kite AI 项目助手 - 交互模式');
-  console.log('🎉'.repeat(70));
+  console.log('🎉'.repeat(20));
   console.log('💡 输入项目描述，我会帮你自动匹配并执行相关技能');
   console.log('📝 输入 "exit" 或 "quit" 退出');
   console.log(''.repeat(70));
@@ -451,7 +618,7 @@ async function runInteractiveMode(executor: ProjectAutoExecutor) {
   const prompts = [
     '帮我生成一份有10000个随机数的100*100的csv文件，处理这份CSV数据文件，进行数据清洗和统计分析',
     '帮我生成一个简单的用户管理API代码',
-    '帮我抓取一个网页的内容',
+    '帮我抓取一个www.baidu.com的内容',
   ];
 
   for (const prompt of prompts) {

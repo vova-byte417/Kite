@@ -1,0 +1,9 @@
+{
+  "title": "示例页面标题",
+  "content": "这是从网页中提取的内容...",
+  "links": [
+    "https://example.com/1",
+    "https://example.com/2"
+  ],
+  "scrapedAt": "2026-06-04T10:27:34.291Z"
+}
