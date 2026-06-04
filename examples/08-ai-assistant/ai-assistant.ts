@@ -34,7 +34,7 @@ const DATA_DIR = path.join(OUTPUT_DIR, 'data');
 });
 
 // ==================== DeepSeek API 配置 ====================
-const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || '***REMOVED***';
+const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || 'sk-';
 const DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions';
 
 // ==================== 类型定义 ====================
