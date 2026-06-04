@@ -1,4 +1,4 @@
-# Kite AI Skill System v2.1
+# Kite AI Skill System v0.1
 
 > 完整的 Skill 发现、加载、执行和管理框架
 
