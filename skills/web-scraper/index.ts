@@ -3,7 +3,7 @@
  * 会被自动发现并生成默认配置
  */
 
-import { ExecutionContext } from '../../../src/types';
+import { ExecutionContext } from '../../src/skill/types';
 
 /**
  * 执行网页爬取

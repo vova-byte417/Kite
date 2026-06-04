@@ -694,6 +694,16 @@ export class SkillLoader extends EventEmitter {
     // 读取 Skill 代码
     const code = fs.readFileSync(skill.entryPoint, 'utf-8');
 
+    // 检查是否包含 ES 模块语法
+    const hasESM = code.includes('import ') || code.includes('export ');
+    
+    // 如果是 ES 模块，使用动态 import（非沙箱模式）来加载
+    // 因为 vm2 的 NodeVM 默认不支持 ES 模块语法
+    if (hasESM) {
+      console.warn(`Skill ${skill.name} contains ES module syntax, loading without sandbox`);
+      return this.loadWithRequire(skill);
+    }
+
     // 创建沙箱
     const sandbox = await this.securityManager.createSandbox(
       skill.id,

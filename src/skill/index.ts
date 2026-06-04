@@ -744,16 +744,31 @@ export class SkillManager extends EventEmitter {
     for (const skill of allReadySkills) {
       let score = 0;
       const matchedFields: string[] = [];
+      const matchedTagDetails: string[] = [];
 
       // 检查技能标签匹配
+      // 修复：改为请求标签包含Skill标签的模式
+      // 例如：请求标签 "data cleaning" 应该匹配到 Skill标签 "data"
       if (requiredSkills && requiredSkills.length > 0) {
-        const matchedTags = requiredSkills.filter((req) =>
-          skill.tags.some((tag) =>
-            tag.toLowerCase().includes(req.toLowerCase())
-          )
-        );
-        if (matchedTags.length > 0) {
-          score += (matchedTags.length / requiredSkills.length) * 0.5;
+        let matchedCount = 0;
+        
+        for (const reqTag of requiredSkills) {
+          const reqLower = reqTag.toLowerCase().trim();
+          if (!reqLower) continue;
+          
+          for (const skillTag of skill.tags) {
+            const skillLower = skillTag.toLowerCase().trim();
+            // 双向匹配：请求标签包含Skill标签 OR Skill标签包含请求标签
+            if (reqLower.includes(skillLower) || skillLower.includes(reqLower)) {
+              matchedCount++;
+              matchedTagDetails.push(`${reqTag} → ${skillTag}`);
+              break;
+            }
+          }
+        }
+        
+        if (matchedCount > 0) {
+          score += (matchedCount / requiredSkills.length) * 0.5;
           matchedFields.push('tags');
         }
       }
@@ -763,25 +778,58 @@ export class SkillManager extends EventEmitter {
       const skillNameLower = skill.name.toLowerCase();
       const skillDescLower = skill.description.toLowerCase();
 
+      // 技能名称匹配
       if (descriptionLower.includes(skillNameLower)) {
         score += 0.3;
         matchedFields.push('name');
       }
 
-      if (
-        skillDescLower &&
-        descriptionLower.split(' ').some((word) => skillDescLower.includes(word))
-      ) {
-        score += 0.2;
-        matchedFields.push('description');
+      // 技能名称关键词匹配（拆分匹配）
+      const skillNameWords = skillNameLower.split(/[\s_-]+/);
+      const matchedNameWords = skillNameWords.filter(word => 
+        descriptionLower.includes(word) && word.length > 2
+      );
+      if (matchedNameWords.length > 0) {
+        score += (matchedNameWords.length / skillNameWords.length) * 0.15;
+        if (!matchedFields.includes('name')) {
+          matchedFields.push('name');
+        }
+      }
+
+      // 描述匹配（增强版：检查更多关键词）
+      if (skillDescLower) {
+        const descWords = descriptionLower.split(/[\s.,;:!?_-]+/).filter(w => w.length > 2);
+        const skillDescWords = skillDescLower.split(/[\s.,;:!?_-]+/);
+        const matchedDescWords = descWords.filter(word => 
+          skillDescWords.some(skillWord => skillWord.includes(word) || word.includes(skillWord))
+        );
+        
+        if (matchedDescWords.length > 0) {
+          score += Math.min(matchedDescWords.length / descWords.length, 0.25);
+          matchedFields.push('description');
+        }
+      }
+
+      // 类别匹配（如果有类别信息）
+      if (skill.metadata?.category) {
+        const categoryLower = skill.metadata.category.toLowerCase();
+        if (descriptionLower.includes(categoryLower)) {
+          score += 0.1;
+          matchedFields.push('category');
+        }
       }
 
       if (score > 0) {
+        let explanation = `匹配度: ${Math.round(score * 100)}%`;
+        if (matchedTagDetails.length > 0) {
+          explanation += ` (标签匹配: ${matchedTagDetails.join(', ')})`;
+        }
+        
         results.push({
           skill,
           score: Math.min(score, 1),
           matchedFields,
-          explanation: `匹配度: ${Math.round(score * 100)}%`,
+          explanation,
         });
       }
     }

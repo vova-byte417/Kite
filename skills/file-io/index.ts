@@ -9,7 +9,7 @@
 
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { SkillExport, ExecutionContext } from '../../skill-system/src/types';
+import { SkillExport, ExecutionContext } from '../../src/skill/types';
 
 // ==================== 输入类型定义 ====================
 

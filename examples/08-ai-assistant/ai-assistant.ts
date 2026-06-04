@@ -449,7 +449,7 @@ async function runInteractiveMode(executor: ProjectAutoExecutor) {
 
   // 模拟命令行输入（实际使用时可以用 readline）
   const prompts = [
-    '帮我处理一份CSV数据文件，进行数据清洗和统计分析',
+    '帮我生成一份有10000个随机数的100*100的csv文件，处理这份CSV数据文件，进行数据清洗和统计分析',
     '帮我生成一个简单的用户管理API代码',
     '帮我抓取一个网页的内容',
   ];

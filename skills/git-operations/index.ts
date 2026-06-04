@@ -10,7 +10,7 @@
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import * as path from 'path';
-import { SkillExport, ExecutionContext } from '../../skill-system/src/types';
+import { SkillExport, ExecutionContext } from '../../src/skill/types';
 
 const execAsync = promisify(exec);
 

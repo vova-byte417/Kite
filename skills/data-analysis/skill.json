@@ -3,7 +3,7 @@
   "name": "数据分析",
   "description": "提供数据清洗、统计分析和可视化能力",
   "version": "1.2.0",
-  "tags": ["data", "analysis", "statistics", "visualization"],
+  "tags": ["data", "analysis", "statistics", "visualization", "csv", "cleaning", "data-cleaning", "statistical", "pandas", "numpy", "processing", "chart", "graph"],
   "entryPoint": "index.ts",
   "supportedModels": ["gpt-4", "gpt-3.5-turbo", "claude-3"],
   "requirements": {

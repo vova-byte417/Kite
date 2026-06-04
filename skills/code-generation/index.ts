@@ -7,7 +7,7 @@
  * @version 1.0.0
  */
 
-import { SkillExport, ExecutionContext } from '../../skill-system/src/types';
+import { SkillExport, ExecutionContext } from '../../src/skill/types';
 
 // ==================== 输入类型定义 ====================
 
